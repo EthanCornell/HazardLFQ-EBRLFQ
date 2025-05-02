@@ -195,5 +195,3 @@ MIT — see `LICENSE`.
 Bug reports, portability patches and additional test cases are **welcome!**
 Open an issue or send a PR. Please mention whether the queue now passes
 `test_aba_uaf` and `test_livelock` on your setup.
-
-```
