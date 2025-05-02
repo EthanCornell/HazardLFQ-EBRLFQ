@@ -50,9 +50,9 @@ other threads crash.
 
 ```text
  (1) START ― empty queue: a single dummy node ‘D’
-      ┌──────┐
-head─►  [D]  │     tail ─┐
-             └──────┘   HP table  (= all nullptr)
+         ┌──────┐
+head─►  [D]     │     tail ─┐
+                └──────┘   HP table  (= all nullptr)
 
  ┌────────────────────────────────────────────────────────────┐
  │ PRODUCER thread P (enqueue X)                              │
