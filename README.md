@@ -105,8 +105,9 @@ Key points you can mention right below the diagram:
 ```
 
 .
-├── lockfree\_queue.hpp        # queue + hazard-pointer lib
-├── lockfree\_queue\_tests.cpp  # stress & regression tests
+├── hazard_pointer.hpp        # hazard-pointer lib
+├── lockfree_queue.hpp        # queue + hazard-pointer lib
+├── lockfree_queue_tests.cpp  # stress & regression tests
 └── README.md
 
 ````
