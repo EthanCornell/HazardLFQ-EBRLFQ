@@ -98,6 +98,74 @@ Key points you can mention right below the diagram:
 * `hp::scan()` runs once the per-thread retired-list reaches
   `R = H × kRFactor` (see Equation 2, page 4 of Michael 2004 ).
 
+
+---
+
+### **Hazard-Pointer Lifecycle — Protection → Removal → Scan → Release → Reclaim**
+
+
+```
+                       ┌────────────────────────────────────────┐
+                       │          lock-free structure           │
+                       └────────────────────────────────────────┘
+                                ▲                 │
+                                │                 ▼
+                                │ (remove A) ┌────────────────┐
+                                │            │ Retire-queue T1│
+                                │            │   A , …        │
+                                │            └────────────────┘
+                                │
+   Time ↓ ────────────────────────────────────────────────────────────────────────────
+
+   ┌───────────────┐       ┌──────────────────────────┐       ┌─────────────────┐
+   │ Thread 2      │       │  Shared hazard slots     │       │ Thread 1        │
+   │  (reader)     │       │  HP[1]  HP[2]  HP[3] ... │       │  (remover)      │
+   └───────┬───────┘       └──────────┬───────────────┘       └────────┬────────┘
+           │                          │                                │
+           │ ① **Publish**            │                                │
+           │    HP[2] ← A             │  HP[2]: A                      │
+           │ ② **Validate**           │                                │
+           │ ③ **Access** ─── read *A─────────────────────────────────►│
+           │                          │                                │
+           │                          │  (A still in structure)        │
+           │                          │                                │
+           │                          ▼                                │
+           │                    *time passes*                          │
+           │                                                           ▼
+           │                          │                    ④ **Retire** A
+           │                          │  HP[2]: A          enqueue A in Retire-Q
+           │                          │                                │
+           │                          │                                │
+           │                          │                    ⑤ **Scan #1**
+           │                          │  HP[2]: A          sees A → keep
+           │                          │                                │
+           │ ⑥ **Release**  HP[2] ← ∅ │  HP[2]: ∅                      │
+           │                          │                                │
+           │                          │                    ⑦ **Scan #2**
+           │                          │  HP[2]: ∅          A unprotected
+           │                          │                                │
+           │                          │                    ⑧ **Free(A)**
+```
+
+**How to read the diagram**
+
+* **Thread 2 (reader)** — protects pointer **A**, validates it, uses it, then clears its slot.
+* **Thread 1 (remover)** — unlinks **A**, moves it to its retire-queue, and scans hazard slots twice.
+* **Shared hazard slots** show at a glance whether any thread still advertises **A**:
+
+  * First scan: `HP[2] : A`  →  A is still *hazardous*, so it stays in the queue.
+  * Second scan: `HP[2] : ∅` →  No slot contains A, so it is safe to `free(A)`.
+
+This sequence illustrates every item in your checklist:
+
+1. **Declaration / Publish** (①)
+2. **Validation** (implicit between ① and ③)
+3. **Access** (③)
+4. **Retirement** (④)
+5. **Scanning** (⑤, ⑦)
+6. **Reclamation** (⑧)
+
+
 ---
 
 ## Directory layout
