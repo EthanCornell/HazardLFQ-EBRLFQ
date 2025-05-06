@@ -1,4 +1,4 @@
-# HazardLFQ — Lock-Free Queue with Hazard-Pointer and Epoch-Based Reclamation
+# HazardLFQ / EBRLFQ — Lock-Free Queue with Hazard-Pointer and Epoch-Based Reclamation
 
 HazardLFQ is an **industrial-strength, header-only implementation** of the Michael & Scott
 lock-free queue (1996) written in modern **C++20**.  
