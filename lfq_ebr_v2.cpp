@@ -34,32 +34,26 @@
  *      – Implement the original helping rules from the M&S paper so **some** thread always makes
  *        progress when head or tail lags behind.
  *
- *  ───────────────────────────────────────────────────────────────────────────────
- *  EBR timeline (3-bucket scheme)
- *  ───────────────────────────────────────────────────────────────────────────────
- *      time  ➜──────────────────────────────────────────────────────────────────➜
+ *  ────────────────────────────────────────────────────────────────────────────────
+ *  EBR timeline
+ *  ────────────────────────────────────────────────────────────────────────────────
+ *      time  ➜─────────────────────────────────────────────────────────────────➜
  *
- *      global epoch      0                 1                 2           3
- *                        │<--  GP-1  −->│<--  GP-2  −->│
+ *      global epoch   0               1               2               3
+ *                     │<-- grace-period-1 -->│<-- grace-period-2 -->│
  *
- *      T0  CPU   ↱ enter CS  @E=0 (the thread entered its critical-section while g_epoch (the global epoch counter) was 0.)
- *                │   …uses node A…            ↳ exit CS (quiescent)
+ *      T0  CPU  ↱ enter CS @E0
+ *               │  …uses node A…            ↳ exit CS (quiescent)
  *
- *      T1  CPU                   retire(A)  →   bucket[0]           ─────► free(A)
- *                              (A born in epoch 0)                  (right after
- *                                                                   the flip 2 → 3)
+ *      T1  CPU                  retire(A)  (bucket 0)
+ *                                                      ──────────►  free(A)
  *
- *      Bucket[0] age     keep (epoch 0)   keep (epoch 1)   reclaim (epoch 2 → 3)
- *                       ───────────────┬─────────────────┬──────────────────────┐
- *      Bucket[1] …                     │                 │                      │
- *                       GP-1 finished ─┘                 │                      │
- *                                         GP-2 finished ─┘                      │
- *                                                                               ▼
+ *      Bucket age   kept         kept        ─────────► reclaim
+ *                    (E0)        (E1)               (during E2→E3 flip)
  *
- *  Guarantee: a node is reclaimed **only after it has survived two complete
- *  grace periods** (GP-1 + GP-2).  By that time every thread has published at
- *  least one quiescent point twice, so no live pointer can refer to the old
- *  address — the classic memory-reuse ABA hazard is impossible.
+ *    Guarantee: a node is freed **only** after two complete grace periods (GP1+GP2),
+ *    therefore no live pointer can still reference its address – the memory-reuse ABA is
+ *    impossible.
  ********************************************************************************************/
 
 #pragma once
@@ -190,8 +184,6 @@ inline void retire(void* p, std::function<void(void*)> f)
  ************************************************************************************************/
 namespace lfq {
 
-namespace lfq {
-
 template<class T>
 class Queue {
     struct Node {
@@ -229,73 +221,73 @@ public:
     }
     Queue(const Queue&) = delete; Queue& operator=(const Queue&) = delete;
 
-/*-------------------------------- enqueue --------------------------------*/
-/*  Wait-free (bounded retries) – see header comment above. */
-template<class... Args>
-void enqueue(Args&&... args)
-{
-    Node* n = new Node(false, std::forward<Args>(args)...);
-    unsigned delay = 1;
-    for (;;) {
-        ebr::Guard g;                                   // epoch pin
-        Node* tail = tail_.load(std::memory_order_acquire);
-        Node* next = tail->next.load(std::memory_order_acquire);
-        if (tail != tail_.load(std::memory_order_acquire)) continue; // snapshot stale
+    /*-------------------------------- enqueue --------------------------------*/
+    /*  Wait-free (bounded retries) – see header comment above. */
+    template<class... Args>
+    void enqueue(Args&&... args)
+    {
+        Node* n = new Node(false, std::forward<Args>(args)...);
+        unsigned delay = 1;
+        for (;;) {
+            ebr::Guard g;
+            Node* tail = tail_.load(std::memory_order_acquire);
+            Node* next = tail->next.load(std::memory_order_acquire);
+            if (tail != tail_.load(std::memory_order_acquire)) continue; // snapshot invalid
 
-        if (!next) {                                    // tail is last
-            if (tail->next.compare_exchange_weak(next, n,
+            if (!next) {             // tail truly last → link n
+                if (tail->next.compare_exchange_weak(next, n,
+                        std::memory_order_release,
+                        std::memory_order_relaxed))
+                {
+                    /* help rule #1 – advance global tail */
+                    tail_.compare_exchange_strong(tail, n,
+                        std::memory_order_release,
+                        std::memory_order_relaxed);
+                    return;          // enqueue done 🎉
+                }
+            } else {
+                /* another thread already appended – help rule #2 */
+                tail_.compare_exchange_strong(tail, next,
+                    std::memory_order_release,
+                    std::memory_order_relaxed);
+            }
+            backoff(delay);
+        }
+    }
+
+    /*-------------------------------- dequeue --------------------------------*/
+    /*  Lock-free – may retry indefinitely, but some thread always succeeds. */
+    bool dequeue(T& out)
+    {
+        unsigned delay = 1;
+        for (;;) {
+            ebr::Guard g;
+            Node* head = head_.load(std::memory_order_acquire); // dummy
+            Node* tail = tail_.load(std::memory_order_acquire);
+            Node* next = head->next.load(std::memory_order_acquire);
+            if (head != head_.load(std::memory_order_acquire)) continue;
+            if (!next) return false;      // queue empty
+
+            if (head == tail) {           // tail is stale – help advance
+                tail_.compare_exchange_strong(tail, next,
+                    std::memory_order_release,
+                    std::memory_order_relaxed);
+                backoff(delay);
+                continue;
+            }
+
+            T val = next->val();          // copy before CAS
+            if (head_.compare_exchange_strong(head, next,
                     std::memory_order_release,
                     std::memory_order_relaxed))
             {
-                /* help rule #1 – advance global tail (optional) */
-                tail_.compare_exchange_strong(tail, n,
-                    std::memory_order_release,
-                    std::memory_order_relaxed);
-                return;                                 // enqueue completes
+                out = std::move(val);
+                ebr::retire(head);        // old dummy → retire list
+                return true;
             }
-        } else {
-            /* help rule #2 – tail lagged, push it forward */
-            tail_.compare_exchange_strong(tail, next,
-                std::memory_order_release,
-                std::memory_order_relaxed);
-        }
-        backoff(delay);                                 // bounded exponential pause
-    }
-}
-
-/*-------------------------------- dequeue --------------------------------*/
-/*  Lock-free – may retry indefinitely, but some thread always succeeds. */
-bool dequeue(T& out)
-{
-    unsigned delay = 1;
-    for (;;) {
-        ebr::Guard g;                                   // epoch pin
-        Node* head = head_.load(std::memory_order_acquire);   // dummy
-        Node* tail = tail_.load(std::memory_order_acquire);
-        Node* next = head->next.load(std::memory_order_acquire);
-        if (head != head_.load(std::memory_order_acquire)) continue; // snapshot stale
-        if (!next) return false;                        // queue empty
-
-        if (head == tail) {                            // tail stale – help
-            tail_.compare_exchange_strong(tail, next,
-                std::memory_order_release,
-                std::memory_order_relaxed);
             backoff(delay);
-            continue;
         }
-
-        T val = next->val();                           // copy before CAS
-        if (head_.compare_exchange_strong(head, next,
-                std::memory_order_release,
-                std::memory_order_relaxed))
-        {
-            out = std::move(val);
-            ebr::retire(head);                         // old dummy → retire list
-            return true;
-        }
-        backoff(delay);
     }
-}
 
 
     bool empty() const {
