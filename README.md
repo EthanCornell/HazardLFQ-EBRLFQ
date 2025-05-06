@@ -171,13 +171,14 @@ This sequence illustrates every item in your checklist:
 
 
 ```
-time ────────────────────────────────────────────────────────────────────────────────►
+time ─────────────────────────────────────────────────────────────────────────────►
 
-Global epoch     E = 0                    E = 1                    E = 2          E = 3
-              ───┬────────────────────────┬────────────────────────┬──────────────┬──
-flip-A (GP-1)    │                        │                        │
-flip-B (GP-2)                             │                        │
-                                          ▼                        ▼
+Global epoch     E = 0                    E = 1                    E = 2        E = 3
+              ───┬────────────────────────┬────────────────────────┬────────────┬──
+                 │                        │                        │
+                 │                        │                        │
+                 ▼ flip-A  (GP-1 done)    │                        │
+                                          ▼ flip-B  (GP-2 done)    │
 
 Thread-0
   enter-CS (reads node A)
@@ -201,6 +202,59 @@ Legend
   flip-A / flip-B       : global-epoch increments (every thread left old epoch)
   GP (grace period)     : interval between flips; ensures no thread still
                           holds a pointer into the `(cur−2)` bucket
+
+
+
+
+<details>
+<summary><strong>What are <code>flip-A</code> and <code>flip-B</code> &mdash; and is the timeline correct?</strong></summary>
+
+<br>
+
+| Label in diagram | What really happens (internals)                                                                                                 | Why it matters |
+| :--------------- | :------------------------------------------------------------------------------------------------------------------------------- | :------------- |
+| **flip-A**       | **First global-epoch increment** &nbsp;(E = 0 → **E = 1**) that can occur **only after every thread has left epoch 0**. <br>Marks the end of **Grace-Period 1 (GP-1)**. | Nodes retired in epoch 0 are now *one* GP old but **still cannot** be freed. |
+| **flip-B**       | **Second increment** &nbsp;(E = 1 → **E = 2**) that likewise waits for every thread to leave epoch 1. <br>Ends **Grace-Period 2 (GP-2)**. | Nodes retired in epoch 0 have survived *two* GPs and are now eligible for reclamation. |
+
+After flip-B the global epoch is 2.  
+On the **next** successful increment (2 → 3) the implementation frees  
+`bucket[(cur + 1) % 3] ≡ bucket[0]` —i.e. all nodes retired when `global_epoch` was 0.
+
+---
+
+#### Is the timeline accurate?
+
+Yes—conceptually it’s spot-on.  
+One bookkeeping detail:
+
+* In the example, node **A** is retired in epoch 1, so it lives in **bucket 1**.  
+  It becomes *eligible* at epoch 3, but the actual `free(A)` happens right after
+  the **increment to epoch 4**, when bucket 1 is reclaimed.  
+  (Move the arrow one tick to the right if you want pixel-perfect timing.)
+
+Everything else—three buckets, two grace periods, and both flips—is exactly how
+3-epoch EBR works.
+
+---
+
+#### Quick mnemonic
+
+```
+
+Retire in epoch N
+│
+├─ flip-A → epoch N + 1   (GP-1)
+└─ flip-B → epoch N + 2   (GP-2)
+│
+└─ first increment *after* N + 2 frees bucket\[N]
+
+```
+
+> **Rule of thumb:** **two flips + one more bump** before memory is returned.
+
+</details>
+
+
 
 ### Key take-aways 💡
 
