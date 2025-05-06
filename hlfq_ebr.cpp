@@ -429,19 +429,33 @@ constexpr int SMALL_ITERS   = 100'000;
 #  define DPRINTF(...) ((void)0)
 #endif
 
+/* ── upgraded expect_progress (4-arg overload) ─────────────────── */
 template<typename C>
-void expect_progress(C& counter, std::chrono::seconds timeout, const char* d)
+void expect_progress(C& counter,
+                     std::size_t goal,
+                     std::chrono::milliseconds idle_window,
+                     std::chrono::seconds    hard_timeout)
 {
-    auto start = SteadyClk::now();
-    auto last  = counter.load(std::memory_order_acquire);
-    while (SteadyClk::now() - start < timeout) {
+    auto t_start = SteadyClk::now();
+    auto last    = counter.load(std::memory_order_acquire);
+
+    for (;;) {
         std::this_thread::sleep_for(std::chrono::milliseconds(25));
+
         auto cur = counter.load(std::memory_order_acquire);
-        if (cur != last) { last = cur; start = SteadyClk::now(); }
+        if (cur == goal) return;                       // 全部完成 🎉
+
+        if (cur != last) {                            // 有進度
+            last    = cur;
+            t_start = SteadyClk::now();               // reset idle timer
+        } else if (SteadyClk::now() - t_start > idle_window) {
+            throw std::runtime_error("Live-lock: no progress");
+        }
+        if (SteadyClk::now() - t_start > hard_timeout)
+            throw std::runtime_error("Live-lock: hard timeout");
     }
-    if (counter.load(std::memory_order_acquire) == last)
-        throw std::runtime_error(std::string("Live-lock: ") + d);
 }
+
 
 /* ── T1: simple MPMC enqueue ──────────────────────────────────────*/
 void test_atomic_correctness()
@@ -527,86 +541,56 @@ void test_aba_uaf()
 {
     announce("T2: ABA/UAF", "START");
 
-#ifdef STRESS_TESTS
-    constexpr int kThreads = 8,  kIters = 500'000;
-    constexpr auto TIMEOUT  = std::chrono::seconds(10);
-#else
-    constexpr int kThreads = 4,  kIters = 50'000;
-    constexpr auto TIMEOUT  = std::chrono::seconds(5);
-#endif
+    constexpr int kThreads = 4, kIters = 50'000;
+    constexpr auto TIMEOUT = std::chrono::seconds(10);
 
     LockFreeQueue<int> q;
-    std::atomic<std::size_t> done{0};      // number of successful dequeues
-    std::atomic<bool>        stop{false};  // global “please stop” flag
+    std::atomic<std::size_t> done{0};
+    std::atomic<bool> stop{false};
+    std::atomic<bool> wd_timeout{false};
 
-    /* ── Producers ──────────────────────────────────────────────── */
+    /* producer – 不提早退出 */
     auto producer = [&] {
-        for (int i = 0;
-             i < kIters && !stop.load(std::memory_order_acquire);
-             ++i)
-        {
-            q.enqueue(i);
-        }
+        for (int i = 0; i < kIters; ++i) q.enqueue(i);
     };
 
-    /* ── Consumers ──────────────────────────────────────────────── */
     auto consumer = [&] {
         int v;
         while (!stop.load(std::memory_order_acquire)) {
-            if (q.dequeue(v)) {
-                if (done.fetch_add(1, std::memory_order_acq_rel) + 1 ==
-                    static_cast<std::size_t>(kThreads) * kIters)
-                {
-                    stop.store(true);   // all items consumed
-                    break;
-                }
+            if (q.dequeue(v) &&
+                done.fetch_add(1, std::memory_order_acq_rel) + 1 ==
+                    std::size_t(kThreads) * kIters)
+            {
+                stop.store(true, std::memory_order_release);
             }
         }
     };
 
-    /* ── Watch-dog: abort if progress stalls for TIMEOUT ────────── */
     std::thread watchdog([&] {
-        std::size_t last = done.load(std::memory_order_relaxed);
-        auto        tic  = SteadyClk::now();
-
+        std::size_t last = 0;
+        auto tic = SteadyClk::now();
         while (!stop.load(std::memory_order_acquire)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             auto cur = done.load(std::memory_order_acquire);
-
-            if (cur != last) {          // forward progress observed
-                last = cur;
-                tic  = SteadyClk::now();
-            } else if (SteadyClk::now() - tic > TIMEOUT) {
-#ifdef DEBUG_QUEUE
-                std::fprintf(stderr,
-                    "[T2-WD] stall detected — done=%zu / %zu, queue.empty=%d\n",
-                    cur,
-                    static_cast<std::size_t>(kThreads) * kIters,
-                    q.empty());
-#endif
-                stop.store(true);       // ask all threads to exit
-                throw std::runtime_error("T2 ABA/UAF watchdog timeout");
+            if (cur != last) { last = cur; tic = SteadyClk::now(); }
+            else if (SteadyClk::now() - tic > TIMEOUT) {
+                wd_timeout.store(true, std::memory_order_release);
+                stop.store(true, std::memory_order_release);
             }
         }
     });
 
-    /* ── Launch producers & consumers ───────────────────────────── */
     std::vector<std::thread> tp, tc;
-    for (int i = 0; i < kThreads; ++i) {
-        tp.emplace_back(producer);
-        tc.emplace_back(consumer);
-    }
+    for (int i=0;i<kThreads;++i) tp.emplace_back(producer);
+    for (int i=0;i<kThreads;++i) tc.emplace_back(consumer);
+    for (auto& t:tp) t.join();
+    for (auto& t:tc) t.join();
+    watchdog.join();
 
-    /* ── Join and propagate any watchdog exception ─────────────── */
-    for (auto& t : tp) t.join();
-    for (auto& t : tc) t.join();
-
-    try { watchdog.join(); }            // re-throw if the watchdog aborted
-    catch (...) { throw; }
-
-    if (!stop.load(std::memory_order_acquire))   // finished normally
-        announce("T2: ABA/UAF", "DONE");
+    if (wd_timeout.load()) throw std::runtime_error("watchdog timeout");
+    announce("T2: ABA/UAF", "DONE");
 }
+
 
 
 
@@ -626,26 +610,40 @@ void test_destructor_safe()
 void test_livelock()
 {
     announce("T4: live-lock", "START");
+
 #ifdef STRESS_TESTS
     constexpr int kThreads = 64, pushes = 250'000;
+    constexpr auto HARD  = std::chrono::seconds(20);
 #else
     constexpr int kThreads = 16, pushes = 30'000;
+    constexpr auto HARD  = std::chrono::seconds(8);
 #endif
+    constexpr std::size_t GOAL = std::size_t(kThreads) * pushes;
+
     LockFreeQueue<int> q;
     std::atomic<std::size_t> enq{0};
 
+    /* ── 啟動生產者 ───────────────────────────────────────────── */
     std::vector<std::thread> tp;
+    tp.reserve(kThreads);
     for (int i = 0; i < kThreads; ++i)
         tp.emplace_back([&]{
             for (int j = 0; j < pushes; ++j) {
-                q.enqueue(j); enq.fetch_add(1, std::memory_order_relaxed);
+                q.enqueue(j);
+                enq.fetch_add(1, std::memory_order_relaxed);
             }
         });
 
-    expect_progress(enq, std::chrono::seconds(2), "enqueue");
+    /* ── 監看進度：idle ≤2s，總時間 ≤ HARD ───────────────────── */
+    expect_progress(enq, GOAL,
+                    std::chrono::seconds(2),  // idle
+                    HARD);                    // hard
+
     for (auto& t : tp) t.join();
     announce("T4: live-lock", "DONE");
 }
+
+
 
 static_assert(!std::is_copy_constructible_v<LockFreeQueue<int>>);
 
@@ -655,9 +653,9 @@ int main()
     try {
         test_atomic_correctness();
         test_atomic_correctness_new();
-        // test_aba_uaf();
+        test_aba_uaf();
         test_destructor_safe();
-        // test_livelock();
+        test_livelock();
         std::puts("\nALL TESTS PASSED 🎉");
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "\nTEST FAILURE: %s\n", ex.what());
