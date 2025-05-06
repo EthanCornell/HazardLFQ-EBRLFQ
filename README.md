@@ -332,10 +332,16 @@ MIT — see `LICENSE`.
 
 ## References
 
-* Maged M. Michael,  
+* Maged M. Michael.  
   **“Hazard Pointers: Safe Memory Reclamation for Lock-Free Objects.”**  
-  *IEEE Transactions on Parallel and Distributed Systems*, 15 (6): 491-504, 2004.  
+  *IEEE Transactions on Parallel and Distributed Systems* 15 (6): 491-504, 2004.  
   [PDF](https://www.cs.otago.ac.nz/cosc440/readings/hazard-pointers.pdf)
+
+* Keir Fraser.  
+  **“Practical Lock-Freedom.”**  
+  *University of Cambridge Computer Laboratory Technical Report* **UCAM-CL-TR-579**, 2004.  
+  [PDF](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-579.pdf)
+
 
 ## Contributing
 
