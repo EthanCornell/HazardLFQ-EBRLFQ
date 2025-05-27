@@ -1,4 +1,4 @@
-# HazardLFQ / EBRLFQ — Industrial-Strength Lock-Free Queue with Dual Memory Reclamation
+# HazardLFQ / EBRLFQ — Lock-Free Queue with Dual Memory Reclamation
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
