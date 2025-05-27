@@ -1,7 +1,7 @@
 # HazardLFQ / EBRLFQ — Lock-Free Queue with Dual Memory Reclamation
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-yellow.svg)](LICENSE)
 [![Sanitizer Clean](https://img.shields.io/badge/Sanitizer-Clean-green.svg)](#testing)
 
 HazardLFQ is an **industrial-strength, header-only implementation** of the Michael & Scott lock-free queue (1996) written in modern **C++20**. Unlike most academic implementations, it provides **two complete memory-reclamation strategies** — **Hazard Pointers** and **3-Epoch Based Reclamation (EBR)** — ensuring **zero ABA problems** and **zero use-after-free** errors even under extreme contention.
