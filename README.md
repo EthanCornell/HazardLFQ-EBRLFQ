@@ -17,7 +17,7 @@ HazardLFQ is an **industrial-strength, header-only implementation** of the Micha
 | **Wait-free Enqueue** | Bounded retries for fixed thread count |
 | **Lock-free Dequeue** | System-wide progress guarantee |
 | **Sanitizer Clean** | Passes ThreadSanitizer + AddressSanitizer |
-| **High Performance** | 3M+ ops/sec single-threaded, 2M+ ops/sec at 16 threads |
+| **High Performance** | 1.7M+ ops/sec single-threaded, 2M+ ops/sec at 16 threads |
 
 ## 📋 Quick Start
 
