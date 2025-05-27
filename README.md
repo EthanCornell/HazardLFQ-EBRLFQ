@@ -1068,7 +1068,7 @@ cd ../hptest && ./hp_bench_latency
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+GPLv3 License - see [LICENSE](LICENSE) file for details.
 
 ## 🎉 Acknowledgments
 
