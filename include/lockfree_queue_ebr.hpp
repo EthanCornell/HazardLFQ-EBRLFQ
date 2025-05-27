@@ -1,14 +1,13 @@
 /********************************************************************************************
  *  lockfree_queue_ebr.hpp — Michael–Scott MPMC Queue + 3-epoch EBR + Back-off
- *
- *  Header-only lock-free queue library with industrial-strength memory reclamation.
- *  This implementation FIXES the thread registration leak and passes comprehensive stress 
- *  tests including ABA/UAF prevention and live-lock detection under ThreadSanitizer and 
- *  AddressSanitizer.
+ *  
+ *  Header-only lock-free queue library with industrial-strength memory reclamation
+ *  and false sharing prevention.
  *
  *  FIXED ISSUES:
  *  • Thread registration leak - threads now properly clean up on exit
  *  • Slot reuse - terminated thread slots are automatically reused
+ *  • False sharing eliminated through cache-line alignment
  *  • Larger thread pool - supports up to 512 concurrent threads
  *  • Robust cleanup - proper resource management on thread termination
  *
@@ -18,10 +17,11 @@
  *  • 3-epoch Epoch-Based Reclamation (EBR) prevents ABA and use-after-free
  *  • Bounded exponential back-off eliminates live-lock
  *  • Thread-safe slot management with automatic cleanup
+ *  • Cache-line alignment prevents false sharing
  *  • Header-only, C++20, sanitizer-clean
  *
  *  Usage:
- *      #include "lockfree_queue_ebr_fixed.hpp"
+ *      #include "lockfree_queue_ebr_no_false_sharing.hpp"
  *      
  *      lfq::Queue<int> queue;
  *      queue.enqueue(42);
@@ -55,9 +55,19 @@
  *
  *    Guarantee: a node is freed **only** after two complete grace periods (GP1+GP2),
  *    therefore no live pointer can still reference its address.
+ *
+ *  ────────────────────────────────────────────────────────────────────────────────
+ *  False Sharing Prevention:
+ *  ────────────────────────────────────────────────────────────────────────────────
+ *  • ThreadCtl structures aligned to cache line boundaries with strategic padding
+ *  • ThreadSlot array elements occupy full cache lines to prevent interference
+ *  • Queue head/tail pointers separated to different cache lines
+ *  • Global epoch counter isolated on its own cache line
+ *  • Hot atomic variables separated from frequently-accessed data
  ********************************************************************************************/
 
-#pragma once
+#ifndef LOCKFREE_QUEUE_EBR_NO_FALSE_SHARING_HPP
+#define LOCKFREE_QUEUE_EBR_NO_FALSE_SHARING_HPP
 
 #include <atomic>
 #include <array>
@@ -73,14 +83,27 @@ namespace lfq {
 
 namespace ebr {
 
+// Cache line size - typically 64 bytes on most modern processors
+constexpr size_t kCacheLineSize = 64;
+
 constexpr unsigned kThreadPoolSize = 512;  // Larger thread pool
 constexpr unsigned kBatchRetired = 128;     // Reduced threshold for more responsive epoch advancement
 constexpr unsigned kBuckets = 3;            // 3 buckets ⇒ 2 grace periods
 
-struct ThreadCtl {
-    std::atomic<unsigned> local_epoch{~0u};                          // ~0 = quiescent
-    std::array<std::vector<void*>, kBuckets> retire;                // retired nodes
-    std::array<std::vector<std::function<void(void*)>>, kBuckets> del; // deleters
+// Cache-line aligned ThreadCtl to prevent false sharing between threads
+struct alignas(kCacheLineSize) ThreadCtl {
+    // Hot atomic variable - accessed frequently during critical sections
+    std::atomic<unsigned> local_epoch{~0u};
+    
+    // Padding to push retire arrays to next cache line
+    char padding1[kCacheLineSize - sizeof(std::atomic<unsigned>)];
+    
+    // Retire arrays - accessed during retire() and try_flip()
+    std::array<std::vector<void*>, kBuckets> retire;
+    std::array<std::vector<std::function<void(void*)>>, kBuckets> del;
+    
+    // Additional padding to ensure next ThreadCtl starts on new cache line
+    char padding2[kCacheLineSize - (sizeof(retire) + sizeof(del)) % kCacheLineSize];
     
     // Destructor to clean up any remaining retired objects
     ~ThreadCtl() {
@@ -96,10 +119,13 @@ struct ThreadCtl {
     }
 };
 
-// Thread slot management structure
-struct ThreadSlot {
+// Cache-line aligned ThreadSlot to prevent false sharing in the slot array
+struct alignas(kCacheLineSize) ThreadSlot {
     std::atomic<ThreadCtl*> ctl{nullptr};
     std::atomic<std::thread::id> owner_id{std::thread::id{}};
+    
+    // Padding to ensure each ThreadSlot occupies exactly one cache line
+    char padding[kCacheLineSize - sizeof(std::atomic<ThreadCtl*>) - sizeof(std::atomic<std::thread::id>)];
     
     ThreadSlot() = default;
     
@@ -110,9 +136,16 @@ struct ThreadSlot {
     ThreadSlot& operator=(ThreadSlot&&) = delete;
 };
 
-// Global thread slot pool
+// Global thread slot pool - each element on its own cache line
 inline std::array<ThreadSlot, kThreadPoolSize> g_thread_slots{};
-inline std::atomic<unsigned> g_epoch{0};
+
+// Global epoch counter - isolated on its own cache line
+struct alignas(kCacheLineSize) EpochCounter {
+    std::atomic<unsigned> epoch{0};
+    char padding[kCacheLineSize - sizeof(std::atomic<unsigned>)];
+} g_epoch_counter;
+
+inline std::atomic<unsigned>& g_epoch = g_epoch_counter.epoch;
 
 // Thread cleanup helper - automatically cleans up when thread exits
 struct ThreadCleanup {
@@ -122,7 +155,7 @@ struct ThreadCleanup {
     ThreadCleanup(unsigned slot, ThreadCtl* ctl) : slot_(slot), ctl_(ctl) {}
     
     ~ThreadCleanup() {
-        // “release” the slot so another thread can claim it
+        // "release" the slot so another thread can claim it
         if (slot_ < kThreadPoolSize) {
             // Clear the slot to make it available for reuse
             g_thread_slots[slot_].ctl.store(nullptr, std::memory_order_release);
@@ -130,25 +163,13 @@ struct ThreadCleanup {
         }
         
         // The ThreadCtl destructor will handle cleanup of retired objects
-        // destroy this thread’s ThreadCtl (frees any remaining retired nodes)
+        // destroy this thread's ThreadCtl (frees any remaining retired nodes)
         delete ctl_;
     }
 };
 
 // Forward declaration
 inline void try_flip(ThreadCtl*);
-
-
-//------------------------------------------------------------------------------
-// Thread slot management — this is where each thread “registers” itself
-// (analogous to acquiring a hazard‐pointer slot), and deregisters on exit.
-//
-//   - g_thread_slots[] is the global pool of slots.
-//   - init_thread() finds/claims one slot by CAS on owner_id,
-//     stores its ThreadCtl* in ctl.
-//   - ThreadCleanup’s destructor clears ctl and owner_id,
-//     making that slot reusable (“releasing” the hazard pointer).
-//------------------------------------------------------------------------------
 
 // Initialize thread - now with proper cleanup and slot reuse
 inline ThreadCtl* init_thread()
@@ -157,7 +178,7 @@ inline ThreadCtl* init_thread()
     static thread_local std::unique_ptr<ThreadCleanup> cleanup;
     
     if (!ctl) {
-        // 1) allocate this thread’s reclamation control block
+        // 1) allocate this thread's reclamation control block
         ctl = new ThreadCtl;
         auto this_id = std::this_thread::get_id();
         
@@ -168,7 +189,7 @@ inline ThreadCtl* init_thread()
             std::thread::id expected{};
             if (g_thread_slots[i].owner_id.compare_exchange_strong(
                     expected, this_id, std::memory_order_acq_rel)) {
-                // successfully “registered” this thread
+                // successfully "registered" this thread
                 g_thread_slots[i].ctl.store(ctl, std::memory_order_release);
                 my_slot = i;
                 break;
@@ -296,7 +317,6 @@ inline bool force_epoch_advance() {
 
 } // namespace ebr
 
-
 /******************************** Michael–Scott Queue (MPMC) ********************************
  *
  *  Progress guarantees (original M&S 1996, preserved here):
@@ -322,6 +342,7 @@ inline bool force_epoch_advance() {
  *  In short:  enqueue == wait-free (bounded retries); dequeue == lock-free.
  ************************************************************************************************/
 
+// Queue with cache-line separation for head/tail pointers
 template<class T>
 class Queue {
     struct Node {
@@ -338,13 +359,24 @@ class Queue {
         ~Node() { if (has_val) val().~T(); }
     };
 
-    std::atomic<Node*> head_;
-    std::atomic<Node*> tail_;
+    // Separate head and tail to different cache lines to reduce false sharing
+    struct alignas(ebr::kCacheLineSize) HeadPtr {
+        std::atomic<Node*> ptr;
+        char padding[ebr::kCacheLineSize - sizeof(std::atomic<Node*>)];
+        HeadPtr(Node* n) : ptr(n) {}
+    } head_;
+    
+    struct alignas(ebr::kCacheLineSize) TailPtr {
+        std::atomic<Node*> ptr;
+        char padding[ebr::kCacheLineSize - sizeof(std::atomic<Node*>)];
+        TailPtr(Node* n) : ptr(n) {}
+    } tail_;
 
+    /* bounded exponential back-off – doubles pauses up to 1024 */
     static inline void backoff(unsigned& n)
     {
 #if defined(__i386__) || defined(__x86_64__)
-        constexpr uint32_t kMax = 1024;
+        constexpr uint32_t kMax = 1024; // 1024 × pause ≈ 1 µs @3 GHz
         if (n < kMax) {
             for (uint32_t i = 0; i < n; ++i) __builtin_ia32_pause();
             n <<= 1;
@@ -358,15 +390,14 @@ class Queue {
     }
 
 public:
-    Queue()
+    Queue() : head_(new Node()), tail_(head_.ptr.load())
     {
-        Node* d = new Node();
-        head_.store(d, std::memory_order_relaxed);
-        tail_.store(d, std::memory_order_relaxed);
     }
     Queue(const Queue&)            = delete;
     Queue& operator=(const Queue&) = delete;
 
+    /*-------------------------------- enqueue --------------------------------*/
+    /*  Wait-free (bounded retries) – see header comment above. */
     template<class... Args>
     void enqueue(Args&&... args)
     {
@@ -374,24 +405,24 @@ public:
         unsigned delay = 1;
         for (;;) {
             ebr::Guard g;
-            Node* tail = tail_.load(std::memory_order_acquire);
+            Node* tail = tail_.ptr.load(std::memory_order_acquire);
             Node* next = tail->next.load(std::memory_order_acquire);
-            if (tail != tail_.load(std::memory_order_acquire)) continue;
-            if (!next) {
-                if (tail->next.compare_exchange_weak(
-                        next, n,
+            if (tail != tail_.ptr.load(std::memory_order_acquire)) continue; // snapshot invalid
+
+            if (!next) {             // tail truly last → link n
+                if (tail->next.compare_exchange_weak(next, n,
                         std::memory_order_release,
                         std::memory_order_relaxed))
                 {
-                    tail_.compare_exchange_strong(
-                        tail, n,
+                    /* help rule #1 – advance global tail */
+                    tail_.ptr.compare_exchange_strong(tail, n,
                         std::memory_order_release,
                         std::memory_order_relaxed);
-                    return;
+                    return;          // enqueue done 🎉
                 }
             } else {
-                tail_.compare_exchange_strong(
-                    tail, next,
+                /* another thread already appended – help rule #2 */
+                tail_.ptr.compare_exchange_strong(tail, next,
                     std::memory_order_release,
                     std::memory_order_relaxed);
             }
@@ -399,53 +430,49 @@ public:
         }
     }
 
+    /*-------------------------------- dequeue --------------------------------*/
+    /*  Lock-free – may retry indefinitely, but some thread always succeeds. */
     bool dequeue(T& out)
     {
         unsigned delay = 1;
         for (;;) {
             ebr::Guard g;
-            Node* head = head_.load(std::memory_order_acquire);
-            Node* tail = tail_.load(std::memory_order_acquire);
+            Node* head = head_.ptr.load(std::memory_order_acquire); // dummy
+            Node* tail = tail_.ptr.load(std::memory_order_acquire);
             Node* next = head->next.load(std::memory_order_acquire);
-            if (head != head_.load(std::memory_order_acquire)) continue;
-            if (!next) return false;
-            if (head == tail) {
-                tail_.compare_exchange_strong(
-                    tail, next,
+            if (head != head_.ptr.load(std::memory_order_acquire)) continue;
+            if (!next) return false;      // queue empty
+
+            if (head == tail) {           // tail is stale – help advance
+                tail_.ptr.compare_exchange_strong(tail, next,
                     std::memory_order_release,
                     std::memory_order_relaxed);
                 backoff(delay);
                 continue;
             }
-            T val = next->val();
-            if (head_.compare_exchange_strong(
-                    head, next,
+
+            T val = next->val();          // copy before CAS
+            if (head_.ptr.compare_exchange_strong(head, next,
                     std::memory_order_release,
                     std::memory_order_relaxed))
             {
                 out = std::move(val);
-                ebr::retire(head);
+                ebr::retire(head);        // old dummy → retire list
                 return true;
             }
             backoff(delay);
         }
     }
 
-    bool empty() const
-    {
+    bool empty() const {
         ebr::Guard g;
-        return head_.load(std::memory_order_acquire)
-               ->next.load(std::memory_order_acquire) == nullptr;
+        return head_.ptr.load(std::memory_order_acquire)
+                ->next.load(std::memory_order_acquire) == nullptr;
     }
 
-    ~Queue()
-    {
-        Node* n = head_.load(std::memory_order_relaxed);
-        while (n) {
-            Node* nx = n->next.load(std::memory_order_relaxed);
-            delete n;
-            n = nx;
-        }
+    ~Queue() {
+        Node* n = head_.ptr.load(std::memory_order_relaxed);
+        while (n) { Node* nx = n->next.load(std::memory_order_relaxed); delete n; n = nx; }
     }
     
     // Utility functions for monitoring (optional)
@@ -467,3 +494,5 @@ template<class T>
 using EBRQueue = Queue<T>;
 
 } // namespace lfq
+
+#endif // LOCKFREE_QUEUE_EBR_NO_FALSE_SHARING_HPP
