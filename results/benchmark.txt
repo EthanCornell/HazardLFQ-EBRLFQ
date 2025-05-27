@@ -10,13 +10,13 @@ Queue Types:
 • HP: Hazard Pointer Lock-Free Queue
 • MUTEX: Coarse-Grained Mutex-Based Queue
 
-Test Name                Queue   ThrdOps/Sec     Ops/Thrd/SecScale     Contention  Fairness  
+Test Name                Queue   ThrdOps/Sec     Ops/Thrd/Sec Scale    Contention  Fairness  
 ----------------------------------------------------------------------------------------------------
 
 === Single-Threaded Baseline ===
-Single Thread            EBR     2   8613266.91  4306633.46  0.00      0.00        1.00      
-Single Thread            HP      2   15138210.63 7569105.31  0.00      0.00        0.58      
-Single Thread            MUTEX   2   9424319.16  4712159.58  0.00      0.12        1.00      
+Single Thread (1p1c)     EBR     2   8613266.91  4306633.46  0.00      0.00        1.00      
+Single Thread (1p1c)     HP      2   15138210.63 7569105.31  0.00      0.00        0.58      
+Single Thread (1p1c)     MUTEX   2   9424319.16  4712159.58  0.00      0.12        1.00      
 
 === Multi-Producer Single-Consumer ===
 2P/1C                    EBR     3   8408838.79  2802946.26  0.00      0.00        0.94      
