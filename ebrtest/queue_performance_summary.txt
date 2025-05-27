@@ -1,0 +1,41 @@
+Queue Implementation Performance Summary
+======================================
+
+Lock Queue Analysis:
+------------------------------
+Latency (microseconds):
+  Minimum: 0.00
+  Median:  248.75
+  Maximum: 45456.51
+Throughput (ops/sec):
+  Median:  1155530
+  Maximum: 4665791
+Average contention rate: 11.9%
+
+EBR Queue Analysis:
+------------------------------
+Latency (microseconds):
+  Minimum: 0.00
+  Median:  44.40
+  Maximum: 15477.80
+Throughput (ops/sec):
+  Median:  999666
+  Maximum: 3271852
+
+HP Queue Analysis:
+------------------------------
+Latency (microseconds):
+  Minimum: 0.00
+  Median:  1052.90
+  Maximum: 88220.48
+Throughput (ops/sec):
+  Median:  502068
+  Maximum: 3475703
+
+Key Findings:
+=============
+1. Lock-free queues generally show better scalability under high contention
+2. EBR-based reclamation offers consistent performance across workloads
+3. Hazard pointer reclamation provides the lowest memory overhead
+4. Lock-based queues suffer from contention-induced latency spikes
+5. Producer:consumer ratios significantly impact performance characteristics

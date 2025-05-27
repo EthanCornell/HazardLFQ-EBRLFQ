@@ -1,0 +1,5 @@
+Benchmark,Queue_Type,Threads,Payload_Size,Sample_Count,Mean_Latency_us,Min_Latency_us,Max_Latency_us,Std_Dev_us,Epoch_Cross_Rate,Avg_Active_Threads,Throughput_ops_per_sec
+Single-threaded baseline,EBR,1,96,100000,1.14334,0.799,2744.85,10.4075,0,1,536585
+Multi-producer (2P),EBR,3,96,100000,66004.5,108.898,125894,36157.4,0,2.37616,594868
+Multi-producer (4P),EBR,5,96,100000,79102.8,112.498,146289,41283.7,0,2.711,501038
+Multi-producer (8P),EBR,9,96,100000,72754.7,139.397,127330,33830.4,0,3.5201,520875

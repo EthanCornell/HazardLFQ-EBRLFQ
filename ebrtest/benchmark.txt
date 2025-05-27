@@ -1,0 +1,235 @@
+Comprehensive Queue Benchmark Suite
+===================================
+Hardware threads: 16
+Max test threads: 16
+Benchmark duration: 5s per test
+Warmup duration: 1s per test
+
+Queue Types:
+• EBR: 3-Epoch Based Reclamation Lock-Free Queue
+• HP: Hazard Pointer Lock-Free Queue
+• MUTEX: Coarse-Grained Mutex-Based Queue
+
+Test Name                Queue   ThrdOps/Sec     Ops/Thrd/SecScale     Contention  Fairness  
+----------------------------------------------------------------------------------------------------
+
+=== Single-Threaded Baseline ===
+Single Thread            EBR     2   8613266.91  4306633.46  0.00      0.00        1.00      
+Single Thread            HP      2   15138210.63 7569105.31  0.00      0.00        0.58      
+Single Thread            MUTEX   2   9424319.16  4712159.58  0.00      0.12        1.00      
+
+=== Multi-Producer Single-Consumer ===
+2P/1C                    EBR     3   8408838.79  2802946.26  0.00      0.00        0.94      
+2P/1C                    HP      3   11808221.87 3936073.96  0.00      0.00        0.79      
+2P/1C                    MUTEX   3   17193314.77 5731104.92  0.00      0.07        0.92      
+4P/1C                    EBR     5   5200316.37  1040063.27  0.00      0.00        0.64      
+4P/1C                    HP      5   6149074.91  1229814.98  0.00      0.00        0.98      
+4P/1C                    MUTEX   5   13855181.10 2771036.22  0.00      0.09        0.68      
+8P/1C                    EBR     9   3529858.50  392206.50   0.00      0.00        0.41      
+8P/1C                    HP      9   3583166.45  398129.61   0.00      0.00        0.87      
+8P/1C                    MUTEX   9   9728183.34  1080909.26  0.00      0.10        0.40      
+
+=== Single-Producer Multi-Consumer ===
+1P/2C                    EBR     3   6374211.36  2124737.12  0.00      0.00        0.89      
+1P/2C                    HP      3   11513853.75 3837951.25  0.00      0.00        0.46      
+1P/2C                    MUTEX   3   10936186.46 3645395.49  0.00      0.12        0.89      
+1P/4C                    EBR     5   5937852.08  1187570.42  0.00      0.00        0.63      
+1P/4C                    HP      5   8406343.82  1681268.76  0.00      0.00        0.40      
+1P/4C                    MUTEX   5   8522072.69  1704414.54  0.00      0.13        0.64      
+1P/8C                    EBR     9   5776047.78  641783.09   0.00      0.00        0.39      
+1P/8C                    HP      9   4553365.16  505929.46   0.00      0.00        0.38      
+1P/8C                    MUTEX   9   6716089.76  746232.20   0.00      0.15        0.40      
+
+=== Multi-Producer Multi-Consumer ===
+2P/2C                    EBR     4   5286040.99  1321510.25  0.00      0.00        1.00      
+2P/2C                    HP      4   9542980.45  2385745.11  0.00      0.00        0.72      
+2P/2C                    MUTEX   4   8829654.11  2207413.53  0.00      0.13        1.00      
+4P/4C                    EBR     8   3834757.37  479344.67   0.00      0.00        0.99      
+4P/4C                    HP      8   5182192.18  647774.02   0.00      0.00        0.92      
+4P/4C                    MUTEX   8   5442250.22  680281.28   0.00      0.16        1.00      
+8P/8C                    EBR     16  2961219.76  185076.23   0.00      0.00        1.00      
+8P/8C                    HP      16  2852717.67  178294.85   0.00      0.00        1.00      
+8P/8C                    MUTEX   16  4232581.74  264536.36   0.00      0.19        1.00      
+
+=== High Contention Stress Test ===
+High Contention 16       EBR     16  3131325.71  195707.86   0.00      0.00        1.00      
+High Contention 16       HP      16  2846662.89  177916.43   0.00      0.00        0.97      
+High Contention 16       MUTEX   16  4183981.82  261498.86   0.00      0.29        1.00      
+
+=== Scalability Analysis ===
+Scale 2                  EBR     2   8939544.67  4469772.34  0.00      0.00        1.00      
+Scale 2                  HP      2   13911788.70 6955894.35  0.00      0.00        0.59      
+Scale 2                  MUTEX   2   13174794.07 6587397.04  0.00      0.21        1.00      
+Scale 4                  EBR     4   6054199.05  1513549.76  0.00      0.00        0.98      
+Scale 4                  HP      4   10336996.96 2584249.24  0.00      0.00        0.71      
+Scale 4                  MUTEX   4   8925615.11  2231403.78  0.00      0.17        1.00      
+Scale 8                  EBR     8   3803794.29  475474.29   0.00      0.00        1.00      
+Scale 8                  HP      8   4679332.38  584916.55   0.00      0.00        0.96      
+Scale 8                  MUTEX   8   5690318.95  711289.87   0.00      0.24        1.00      
+Scale 16                 EBR     16  3195765.27  199735.33   0.00      0.00        1.00      
+Scale 16                 HP      16  2987513.94  186719.62   0.00      0.00        0.99      
+Scale 16                 MUTEX   16  4423433.70  276464.61   0.00      0.23        1.00      
+
+=== Comparative Analysis Summary ===
+Best overall throughput: 17193315 ops/sec (MUTEX - 2P/1C)
+Best scalability: 0.00x (EBR - Single Thread)
+Best fairness: 1.000 (MUTEX - Scale 2)
+
+Average Performance by Queue Type:
+• EBR: 5403136 ops/sec avg
+• HP: 7566161 ops/sec avg
+• MUTEX: 8751865 ops/sec avg (contention: 91382151 events)
+
+Recommendations:
+• High contention detected in MUTEX queue - consider lock-free alternatives
+• For predictable latency: Consider queue type with highest fairness index
+• For memory-constrained environments: HP Queue (bounded memory usage)
+• For maximum simplicity: MUTEX Queue (if contention is acceptable)
+
+Results exported to comprehensive_queue_benchmark_results.csv
+Comparative analysis exported to queue_comparison_analysis.csv
+
+🎯 Comprehensive Queue Benchmark Complete! 🎯
+
+Output files generated:
+• comprehensive_queue_benchmark_results.csv - Detailed results
+• queue_comparison_analysis.csv - Comparative analysis
+
+Key Findings:
+• Compare throughput across different threading scenarios
+• Analyze scalability factors for each queue type
+• Review contention rates for mutex-based queue
+• Consider fairness indices for latency-sensitive applications
+
+
+
+
+
+
+Queue Implementation Comparison Benchmarks
+==========================================
+Hardware threads: 16
+Sample count:     100000 per test
+Queue types:      Lock-based, EBR Lock-free, HP Lock-free
+
+Benchmark                                    Queue   Thrds Payload Mean(μs) P50(μs)  P95(μs)  P99(μs)  Throughput  Cntn%
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+=== Single-Threaded Baseline ===
+Single-threaded baseline                     Lock    1     88      0.29      0.30      0.30      0.40      2848592.52  0.00
+Single-threaded baseline                     EBR     1     88      0.51      0.30      0.50      3.10      1724212.25  0.00
+Single-threaded baseline                     HP      1     88      2.07      0.30      0.50      0.70      466715.10   0.00
+
+=== Multi-Producer Contention Analysis ===
+Multi-producer (2P)                          Lock    3     88      24060.17  25275.81  39353.89  40355.37  603405.52   3.95
+Multi-producer (2P)                          EBR     3     88      9213.51   9645.75   14277.18  14371.28  747461.67   0.00
+Multi-producer (2P)                          HP      3     88      82972.02  84127.80  151162.76 156884.97 502068.24   0.00
+Multi-producer (4P)                          Lock    5     88      36226.97  35900.74  57529.21  57774.30  571643.88   6.84
+Multi-producer (4P)                          EBR     5     88      14131.05  15264.06  22788.25  23079.54  599404.62   0.00
+Multi-producer (4P)                          HP      5     88      88220.48  90025.60  161940.39 168243.99 532953.61   0.00
+Multi-producer (8P)                          Lock    9     88      45456.51  45298.60  70426.91  71900.18  540863.50   12.11
+Multi-producer (8P)                          EBR     9     88      15477.80  16710.64  23600.23  23884.93  609150.46   0.00
+Multi-producer (8P)                          HP      9     88      81665.07  83484.31  140996.81 147227.02 495698.16   0.00
+
+=== Load-Dependent Latency ===
+Queue depth 0                                Lock    1     88      0.31      0.30      0.40      0.40      2847181.79  0.00
+Queue depth 0                                EBR     1     88      0.40      0.30      0.50      2.80      2267608.66  0.00
+Queue depth 0                                HP      1     88      1.82      0.30      0.40      0.50      536776.98   0.00
+Queue depth 10                               Lock    1     88      0.30      0.30      0.40      0.40      2855229.85  0.00
+Queue depth 10                               EBR     1     88      0.44      0.30      0.50      2.90      2079337.11  0.00
+Queue depth 10                               HP      1     88      1.86      0.30      0.40      0.50      522370.44   0.00
+Queue depth 100                              Lock    1     88      0.32      0.30      0.40      0.50      2757674.33  0.00
+Queue depth 100                              EBR     1     88      0.45      0.30      0.40      3.10      2034867.87  0.00
+Queue depth 100                              HP      1     88      1.79      0.30      0.40      0.50      542204.85   0.00
+Queue depth 1000                             Lock    1     88      0.31      0.30      0.40      0.50      2802812.34  0.00
+Queue depth 1000                             EBR     1     88      0.95      0.30      0.50      2.90      999665.61   0.00
+Queue depth 1000                             HP      1     88      1.98      0.30      0.40      0.50      492206.28   0.00
+
+=== Producer:Consumer Ratio Analysis ===
+P1:C1                                        Lock    2     88      1055.97   995.09    1702.97   1729.37   48652.42    0.01
+P1:C1                                        EBR     2     88      87.74     113.60    200.00    207.30    48775.01    0.00
+P1:C1                                        HP      2     88      3510.77   3203.25   7046.89   7107.29   49188.96    0.00
+P2:C1                                        Lock    3     88      956.19    1048.28   1396.78   1468.38   95136.64    0.06
+P2:C1                                        EBR     3     88      259.92    265.80    515.49    593.19    94345.27    0.00
+P2:C1                                        HP      3     88      7993.15   7684.08   15348.66  16065.35  97846.39    0.00
+P4:C1                                        Lock    5     88      6339.35   6536.60   9144.26   9288.86   175818.09   0.15
+P4:C1                                        EBR     5     88      981.85    1115.18   1799.17   1838.67   189592.21   0.00
+P4:C1                                        HP      5     88      17376.28  17004.54  32588.60  33395.58  185067.76   0.00
+P1:C2                                        Lock    3     88      248.75    194.40    464.39    601.99    47767.32    1.59
+P1:C2                                        EBR     3     88      44.40     35.40     131.50    149.40    47832.57    0.00
+P1:C2                                        HP      3     88      2042.05   2146.97   3573.04   3592.64   48834.32    0.00
+P1:C4                                        Lock    5     88      1193.06   1316.48   1577.38   1635.88   48809.96    18.04
+P1:C4                                        EBR     5     88      178.31    232.00    373.69    405.19    48044.87    0.00
+P1:C4                                        HP      5     88      1052.90   1211.68   1712.87   1743.97   48933.10    0.00
+P4:C4                                        Lock    8     88      1351.68   1153.18   2704.66   2794.86   168407.07   23.02
+P4:C4                                        EBR     8     88      1384.23   1630.97   2063.87   2082.47   188545.74   0.00
+P4:C4                                        HP      8     88      4420.75   4452.03   7666.08   7774.28   189147.72   0.00
+
+=== Throughput Analysis ===
+Throughput (2 threads)                       Lock    2     88      0.00      0.00      0.00      0.00      4665790.55  18.08
+Throughput (2 threads)                       EBR     2     88      0.00      0.00      0.00      0.00      3271852.04  0.00
+Throughput (2 threads)                       HP      2     88      0.00      0.00      0.00      0.00      3090354.07  0.00
+Throughput (4 threads)                       Lock    4     88      0.00      0.00      0.00      0.00      2650959.41  14.51
+Throughput (4 threads)                       EBR     4     88      0.00      0.00      0.00      0.00      3108493.51  0.00
+Throughput (4 threads)                       HP      4     88      0.00      0.00      0.00      0.00      3475702.79  0.00
+Throughput (8 threads)                       Lock    8     88      0.00      0.00      0.00      0.00      1517064.75  22.17
+Throughput (8 threads)                       EBR     8     88      0.00      0.00      0.00      0.00      2614606.37  0.00
+Throughput (8 threads)                       HP      8     88      0.00      0.00      0.00      0.00      2999083.05  0.00
+Throughput (16 threads)                      Lock    16    88      0.00      0.00      0.00      0.00      1155530.12  34.80
+Throughput (16 threads)                      EBR     16    88      0.00      0.00      0.00      0.00      2277964.37  0.00
+Throughput (16 threads)                      HP      16    88      0.00      0.00      0.00      0.00      2525655.28  0.00
+
+=== Performance Summary by Queue Type ===
+
+Lock Queue:
+  Best mean latency: 0.00 μs (Throughput (2 threads))
+  Worst P99 latency: 71900.18 μs (Multi-producer (8P))
+  Best throughput: 4665790.55 ops/sec (Throughput (2 threads))
+  Overall weighted mean latency: 350.39 μs
+  Average contention rate: 8.63%
+
+EBR Queue:
+  Best mean latency: 0.00 μs (Throughput (2 threads))
+  Worst P99 latency: 23884.93 μs (Multi-producer (8P))
+  Best throughput: 3271852.04 ops/sec (Throughput (2 threads))
+  Overall weighted mean latency: 103.31 μs
+
+HP Queue:
+  Best mean latency: 0.00 μs (Throughput (2 threads))
+  Worst P99 latency: 168243.99 μs (Multi-producer (4P))
+  Best throughput: 3475702.79 ops/sec (Throughput (4 threads))
+  Overall weighted mean latency: 694.83 μs
+
+=== Head-to-Head Comparison ===
+Single-threaded latency comparison:
+  Lock-based: 0.29 μs
+  EBR Lock-free: 0.51 μs (76.8% vs Lock)
+  HP Lock-free: 2.1 μs (615.6% vs Lock)
+
+Peak throughput comparison:
+  Lock-based: 4665791 ops/sec (100.0% of peak)
+  EBR Lock-free: 3271852 ops/sec (70.1% of peak)
+  HP Lock-free: 3475703 ops/sec (74.5% of peak)
+
+Contention behavior:
+  Lock-based average contention: 11.9%
+    (Cntn% = contentions_detected / total_operations * 100)
+    (Each operation that finds the mutex already locked counts as 1 contention)
+  EBR Lock-free: No lock contention (wait-free memory reclamation)
+  HP Lock-free: No lock contention (wait-free memory reclamation)
+
+Contention details for multi-producer tests:
+  Multi-producer (2P): 3.9% contention rate
+  Multi-producer (4P): 6.8% contention rate
+  Multi-producer (8P): 12.1% contention rate
+
+Results exported to queue_comparison_results.csv
+Summary analysis exported to queue_performance_summary.txt
+
+🚀 Queue Performance Comparison Complete! 🚀
+Key insights:
+• Lock-free queues excel under high contention scenarios
+• EBR provides consistent performance with automatic cleanup
+• Hazard pointers offer fine-grained memory management
+• Lock-based queues show predictable single-threaded performance
+• Producer:consumer ratios significantly impact scalability

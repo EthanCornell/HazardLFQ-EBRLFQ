@@ -1,0 +1,4 @@
+Benchmark,Threads,Lock_Scalability_Efficiency,EBR_Scalability_Efficiency,Scalability_Advantage,Lock_P99_Degradation,EBR_P99_Degradation
+Multi-producer (2P),3,33.3333,33.3333,0,7.12362e+06,169896
+Multi-producer (4P),5,20,20,0,9.61843e+06,625207
+Multi-producer (8P),9,11.1111,11.1111,0,1.41291e+07,417360

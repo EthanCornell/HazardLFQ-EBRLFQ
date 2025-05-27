@@ -1,0 +1,18 @@
+Benchmark,Avg_Flips,Flip_Efficiency,Memory_Overhead_MB
+Single-threaded latency,0.001968,5.0813e+08,83.9234
+Multi-producer (2P),0.008947,1.11769e+08,83.9234
+Multi-producer (4P),0.013801,7.24585e+07,83.9235
+Multi-producer (8P),0.027574,3.6266e+07,83.9235
+Queue depth 0,0.00214,4.6729e+07,8.39236
+Queue depth 10,0.00219,4.56621e+07,8.39236
+Queue depth 100,0.00198,5.05051e+07,8.39236
+Queue depth 1000,0.00213,4.69484e+07,8.39236
+Queue depth 10000,0.00283,3.53357e+07,8.39236
+Burst latency (burst=100),0.007,142857,0.0839691
+Burst latency (burst=1000),0.0084,1.19048e+06,0.839279
+Burst latency (burst=10000),0.00671,1.49031e+07,8.39238
+16B payload,0.00175,5.71429e+07,3.81472
+256B payload,0.00196,5.10204e+07,26.7029
+1KB payload,0.00198,5.05051e+07,99.9451
+4KB payload,0.00198,2.52525e+07,196.457
+Coordinated Omission Corrected,0.00708943,1.41066e+07,8.39305

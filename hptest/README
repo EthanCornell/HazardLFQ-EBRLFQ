@@ -1,0 +1,307 @@
+# Hazard Pointer Queue Test Suite
+
+This directory contains a comprehensive test suite for the hazard pointer-based lock-free queue implementation. The test suite validates correctness, performance, and memory safety under various conditions.
+
+## 📁 Directory Structure
+
+```
+hptest/
+├── hp_queue_tests.cpp          # Core functionality tests
+├── hp_bench_latency.cpp        # Latency benchmarking suite
+├── hp_aba_stress_test.cpp      # ABA/UAF stress tests
+├── Makefile                    # Build configuration
+└── README.md                   # This file
+```
+
+## 🧪 Test Components
+
+### 1. Core Functionality Tests (`hp_queue_tests.cpp`)
+
+Basic correctness and functionality validation:
+
+- **Basic Functionality**: Empty queue checks, FIFO ordering, single enqueue/dequeue
+- **Single-threaded Performance**: Baseline throughput measurements
+- **Memory Management**: Hazard pointer reclamation effectiveness
+- **Multi-Producer Multi-Consumer**: Concurrent correctness with uniqueness validation
+- **ABA Prevention**: Stress testing for ABA problem prevention
+- **High Contention**: Mixed operations under heavy load
+- **Live-lock Detection**: Progress monitoring to detect stalls
+- **Destructor Safety**: Safe queue destruction with active threads
+
+### 2. Latency Benchmarking (`hp_bench_latency.cpp`)
+
+Comprehensive latency analysis:
+
+- **Single-threaded Latency**: Baseline round-trip measurements
+- **Multi-producer Latency**: Latency under producer contention
+- **Load-dependent Latency**: Impact of queue depth on latency
+- **Burst Analysis**: Latency during traffic bursts
+- **Payload Size Impact**: How message size affects latency
+- **Coordinated Omission**: Corrected latency measurements
+- **Hazard Pointer Overhead**: Analysis of HP scan costs
+
+**Metrics Reported:**
+- Mean, median, and percentile latencies (P50, P90, P95, P99, P99.9, P99.99)
+- Standard deviation and jitter analysis
+- Hazard pointer scan frequency and efficiency
+- Memory overhead estimation
+- Throughput measurements
+
+### 3. ABA/UAF Stress Tests (`hp_aba_stress_test.cpp`)
+
+Intensive stress testing targeting memory safety:
+
+- **Rapid ABA Patterns**: High-frequency enqueue/dequeue cycles
+- **Node Address Reuse**: Detection and safe handling of memory reuse
+- **HP Slot Exhaustion**: Behavior when hazard pointer slots are exhausted
+- **Memory Pressure**: Performance under memory allocation pressure
+- **Burst Traffic**: Handling of sudden load spikes
+- **Long-running Stability**: Multi-minute stability validation
+- **Thread Lifecycle**: Safe handling of thread creation/destruction
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- C++20 compliant compiler (GCC 10+, Clang 12+, MSVC 19.29+)
+- pthread support
+- Make utility
+
+### Basic Usage
+
+```bash
+# Build and run basic tests
+make test
+
+# Run with AddressSanitizer
+make test-asan
+
+# Run with ThreadSanitizer  
+make test-tsan
+
+# Run performance benchmarks
+make benchmark
+
+# Run stress tests
+make stress-test
+```
+
+### Complete Validation
+
+```bash
+# Run full test suite (recommended)
+make full-test
+
+# Quick validation for CI
+make ci
+
+# Performance analysis suite
+make perf-suite
+```
+
+## 🔧 Build Targets
+
+### Basic Tests
+- `test` - Release build with basic functionality tests
+- `test-debug` - Debug build for development
+- `test-asan` - AddressSanitizer build for memory error detection
+- `test-tsan` - ThreadSanitizer build for race condition detection
+- `test-stress` - Stress test configuration
+
+### Benchmarks
+- `benchmark` - Standard latency benchmarks
+- `benchmark-detailed` - Detailed analysis with HP instrumentation
+- `benchmark-csv` - Generate CSV output for analysis
+
+### Stress Tests
+- `stress-test` - Standard ABA/UAF stress tests
+- `stress-test-long` - Long-duration stability tests (5+ minutes)
+- `stress-test-asan` - Stress tests with memory error detection
+
+### Comprehensive
+- `full-test` - Complete validation suite
+- `quick-test` - Essential tests only
+- `test-sanitizers` - All sanitizer-based tests
+- `ci` - Continuous integration appropriate tests
+
+## 📊 Performance Analysis
+
+### Benchmark Output
+
+The latency benchmark generates several output files:
+
+- `hp_latency_results.csv` - Detailed latency statistics
+- `hp_latency_histograms.csv` - Latency distribution data
+- `hp_analysis.csv` - Hazard pointer efficiency metrics
+
+### Key Metrics
+
+**Latency Measurements:**
+- Single-threaded baseline: ~0.1-1 μs typical
+- Multi-threaded: 1-10 μs depending on contention
+- Tail latencies (P99): Monitor for outliers
+
+**Hazard Pointer Efficiency:**
+- Scan frequency: Lower is better
+- Memory overhead: Bounded by HP configuration
+- Reclamation rate: Should approach 100% over time
+
+**Throughput:**
+- Single-threaded: 1-10M ops/sec typical
+- Multi-threaded: Scales with thread count and contention
+
+## 🛡️ Memory Safety Validation
+
+### AddressSanitizer (ASan)
+
+Detects:
+- Use-after-free errors
+- Buffer overflows
+- Memory leaks
+- Double-free errors
+
+```bash
+make test-asan
+make stress-test-asan
+```
+
+### ThreadSanitizer (TSan)
+
+Detects:
+- Data races
+- Deadlocks
+- Thread safety violations
+
+```bash
+make test-tsan
+```
+
+### Valgrind Support
+
+```bash
+make test-valgrind  # Requires Valgrind installation
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**Build Failures:**
+- Ensure C++20 support: `g++ --version` (10+) or `clang++ --version` (12+)
+- Install pthread development libraries
+- Check include path: `-I../include` points to headers
+
+**Test Failures:**
+- **Validation failures**: Indicates memory corruption or ABA issues
+- **Timeout failures**: Suggests live-lock or performance regression
+- **Sanitizer errors**: Memory safety violations requiring investigation
+
+**Performance Issues:**
+- **High latency**: Check system load, CPU frequency scaling
+- **Low throughput**: Verify optimization flags (-O2/-O3)
+- **Memory pressure**: Monitor available RAM during tests
+
+### Debug Tips
+
+1. **Enable detailed output:**
+   ```bash
+   ./hp_test --detailed
+   ./hp_bench_latency --detailed
+   ./hp_aba_stress --detailed
+   ```
+
+2. **Use debug builds for investigation:**
+   ```bash
+   make test-debug
+   gdb ./hp_test_debug
+   ```
+
+3. **Check configuration:**
+   ```cpp
+   // In code - adjust these constants for your environment
+   constexpr unsigned kHazardsPerThread = 2;
+   constexpr unsigned kMaxThreads = 128;
+   constexpr unsigned kRFactor = 2;
+   ```
+
+## 📈 Performance Tuning
+
+### Hazard Pointer Configuration
+
+Key parameters in `hazard_pointer.hpp`:
+
+```cpp
+constexpr unsigned kHazardsPerThread = 2;    // HP slots per thread
+constexpr unsigned kMaxThreads = 128;       // Max concurrent threads  
+constexpr unsigned kRFactor = 2;            // Retirement threshold
+```
+
+**Tuning Guidelines:**
+- `kHazardsPerThread`: Increase if seeing HP conflicts
+- `kMaxThreads`: Set to realistic maximum for your application
+- `kRFactor`: Higher values reduce scan frequency but increase memory usage
+
+### System Optimization
+
+**For best benchmark results:**
+```bash
+# Linux - set high priority
+sudo nice -20 make benchmark
+
+# Disable CPU frequency scaling
+sudo cpupower frequency-set -g performance
+
+# Isolate CPU cores (if available)
+taskset -c 0-7 make benchmark
+```
+
+## 🧪 Adding New Tests
+
+### Test Structure
+
+```cpp
+void testNewFeature() {
+    TestResults results;
+    results.printHeader("New Feature Test");
+    
+    lfq::HPQueue<TestType> queue;
+    
+    // Test implementation
+    
+    results.printSuccess("Test description");
+}
+```
+
+### Integration
+
+1. Add test function to appropriate file
+2. Call from `main()` function
+3. Add Makefile target if needed
+4. Update this README
+
+## 📋 Test Matrix
+
+| Test Type | ASan | TSan | Release | Debug | Long |
+|-----------|------|------|---------|-------|------|
+| Basic Functionality | ✅ | ✅ | ✅ | ✅ | - |
+| Latency Benchmarks | - | - | ✅ | - | ✅ |
+| ABA Stress Tests | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Memory Validation | ✅ | - | - | ✅ | - |
+| Concurrency | - | ✅ | ✅ | ✅ | ✅ |
+
+## 🤝 Contributing
+
+When adding new tests:
+
+1. Follow existing code style and patterns
+2. Add appropriate error handling and validation
+3. Include performance measurements where relevant
+4. Test with sanitizers before submitting
+5. Update documentation and help text
+
+## 📚 References
+
+- **Hazard Pointers Paper**: Maged M. Michael, "Hazard Pointers: Safe Memory Reclamation for Lock-Free Objects", IEEE TPDS 2004
+- **Michael & Scott Queue**: "Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue Algorithms", PODC 1996
+- **Memory Ordering**: C++11 memory model documentation
+- **Lock-free Programming**: "The Art of Multiprocessor Programming" by Herlihy & Shavit

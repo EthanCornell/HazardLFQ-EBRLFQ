@@ -1,0 +1,18 @@
+Benchmark,Avg_Contentions,Lock_Efficiency,Memory_Overhead_MB
+Single-threaded latency,0,0,83.9235
+Multi-producer (2P),0.150104,6.66205e+06,83.9235
+Multi-producer (4P),0.249648,4.00564e+06,83.9235
+Multi-producer (8P),0.350517,2.85293e+06,83.9235
+Queue depth 0,0,0,8.39245
+Queue depth 10,0,0,8.39245
+Queue depth 100,0,0,8.39245
+Queue depth 1000,0,0,8.39245
+Queue depth 10000,1,100000,8.39245
+Burst latency (burst=100),0.058,17241.4,0.0840378
+Burst latency (burst=1000),0.0442,226244,0.839348
+Burst latency (burst=10000),0.05148,1.9425e+06,8.39245
+16B payload,0,0,3.81481
+256B payload,0,0,26.703
+1KB payload,0,0,99.9452
+4KB payload,0,0,196.457
+Coordinated Omission Corrected,0.0491151,2.03624e+06,8.39329

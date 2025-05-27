@@ -1,0 +1,21 @@
+Benchmark,Threads,Scans_Per_Op,Scan_Efficiency,Retirement_Rate,Throughput_Loss_Estimate,HP_Overhead_Percent
+Single Thread (1P/1C),2,0,0,0,0,0
+MPSC (2P/1C),3,0,0,0,0,0
+MPSC (4P/1C),5,0,0,0,0,0
+MPSC (8P/1C),9,0,0,0,0,0
+SPMC (1P/2C),3,0,0,0,0,0
+SPMC (1P/4C),5,0,0,0,0,0
+SPMC (1P/8C),9,0,0,0,0,0
+MPMC (2P/2C),4,0,0,0,0,0
+MPMC (4P/4C),8,0,0,0,0,0
+MPMC (8P/8C),16,0,0,0,0,0
+Scale 2 threads,2,0,0,0,0,0
+Scale 4 threads,4,0,0,0,0,0
+Scale 8 threads,8,0,0,0,0,0
+Scale 16 threads,16,0,0,0,0,0
+4B Payload (4P/4C),8,0,0,0,0,0
+64B Payload (4P/4C),8,0,0,0,0,0
+256B Payload (4P/4C),8,0,0,0,0,0
+1KB Payload (4P/4C),8,0,0,0,0,0
+HP Contention 4 threads,4,0,0,0,0,0
+HP Contention 16 threads,16,0,0,0,0,0

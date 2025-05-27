@@ -1,0 +1,10 @@
+Benchmark,Threads,Lock_Contention_Rate,EBR_Epoch_Cross_Rate,Lock_Avg_Contentions,EBR_Avg_Epochs,Synchronization_Efficiency_Ratio
+Single-threaded baseline,1,0,0,0,0,0
+Multi-producer (2P),3,0.03112,0,0.07152,0,0
+Multi-producer (4P),5,0.03628,0,0.11426,0,0
+Multi-producer (8P),9,0.0332,0,0.17333,0,0
+Queue depth 0,1,0,0,0,0,0
+Queue depth 100,1,0,0,0,0,0
+Queue depth 1000,1,0,0,0,0,0
+16B payload,1,0,0,0,0,0
+1KB payload,1,0,0,0,0,0

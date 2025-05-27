@@ -1,0 +1,89 @@
+Hazard Pointer Queue ABA & Stress Test Suite
+============================================
+Hardware threads: 16
+Test configuration:
+  Stress threads: 16
+  Stress operations: 1000000
+  Long-running duration: 5 minutes
+
+=== Rapid ABA Pattern Test ===
+Completed 1600000 operations in 1.09 seconds
+Throughput: 1468130.94 ops/sec
+✅ PASSED: No ABA-related corruption detected
+
+=== Node Address Reuse Test ===
+Address reuse detected: 0x7ffcb50e1150 at iteration 1
+Address reuse detected: 0x7ffcb50e1150 at iteration 2
+Address reuse detected: 0x7ffcb50e1150 at iteration 3
+Address reuse detected: 0x7ffcb50e1150 at iteration 4
+Address reuse detected: 0x7ffcb50e1150 at iteration 5
+Address reuse detected: 0x7ffcb50e1150 at iteration 6
+Address reuse detected: 0x7ffcb50e1150 at iteration 7
+Address reuse detected: 0x7ffcb50e1150 at iteration 8
+Address reuse detected: 0x7ffcb50e1150 at iteration 9
+...
+...
+Address reuse detected: 0x7ffcb50e1150 at iteration 49996
+Address reuse detected: 0x7ffcb50e1150 at iteration 49997
+Address reuse detected: 0x7ffcb50e1150 at iteration 49998
+Address reuse detected: 0x7ffcb50e1150 at iteration 49999
+Processed 50000 messages
+Unique addresses seen: 1
+Address reuse detected: YES
+✅ PASSED: Address reuse handled safely by hazard pointers
+
+=== Hazard Pointer Slot Exhaustion Test ===
+Threads created: 64
+Successful threads: 64
+Failed threads: 0
+✅ PASSED: All threads handled HP slot management correctly
+
+=== Memory Pressure Reclamation Test ===
+Operations completed: 100000
+Duration: 0.07 seconds
+Peak memory pressure: 6 MB
+Remaining in queue: 50126
+Validation failures: 0
+✅ PASSED: No corruption under memory pressure
+
+=== Burst Traffic Stress Test ===
+Burst 1/20 - Produced: 77672, Consumed: 77672
+Burst 2/20 - Produced: 167034, Consumed: 167034
+Burst 3/20 - Produced: 240010, Consumed: 240010
+Burst 4/20 - Produced: 315105, Consumed: 315105
+Burst 5/20 - Produced: 397699, Consumed: 397699
+Burst 6/20 - Produced: 478108, Consumed: 478108
+Burst 7/20 - Produced: 557334, Consumed: 557334
+Burst 8/20 - Produced: 636239, Consumed: 636239
+Burst 9/20 - Produced: 781678, Consumed: 781678
+Burst 10/20 - Produced: 858436, Consumed: 858436
+Burst 11/20 - Produced: 934876, Consumed: 934876
+Burst 12/20 - Produced: 1006622, Consumed: 1006622
+Burst 13/20 - Produced: 1082525, Consumed: 1082525
+Burst 14/20 - Produced: 1164967, Consumed: 1164967
+Burst 15/20 - Produced: 1236266, Consumed: 1236266
+Burst 16/20 - Produced: 1312333, Consumed: 1312333
+Burst 17/20 - Produced: 1385645, Consumed: 1385645
+Burst 18/20 - Produced: 1457031, Consumed: 1457031
+Burst 19/20 - Produced: 1528208, Consumed: 1528208
+Burst 20/20 - Produced: 1655237, Consumed: 1655237
+Total duration: 3.01 seconds
+Messages produced: 1655237
+Messages consumed: 1655237
+Validation failures: 0
+✅ PASSED: All burst messages processed correctly
+
+=== Thread Lifecycle Stress Test ===
+Completed cycle 0/50, threads completed: 8
+Completed cycle 10/50, threads completed: 8
+Completed cycle 20/50, threads completed: 8
+Completed cycle 30/50, threads completed: 8
+Completed cycle 40/50, threads completed: 8
+Total operations: 400000
+Thread creation failures: 0
+Remaining in queue: 77
+Validation failures: 0
+✅ PASSED: Thread lifecycle stress handled correctly
+
+🎯 ALL HAZARD POINTER STRESS TESTS PASSED! 🎯
+Total test duration: 10.1 seconds

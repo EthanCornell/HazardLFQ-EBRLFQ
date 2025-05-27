@@ -1,0 +1,4 @@
+Queue_Type,Test_Count,Avg_Throughput,Max_Throughput,Min_Throughput,Avg_Scalability,Max_Scalability,Avg_Fairness,Total_Contention_Events,Avg_Memory_Overhead
+EBR,15,5.40314e+06,8.93954e+06,2.96122e+06,0,0,0.857698,0,18069
+HP,15,7.56616e+06,1.51382e+07,2.84666e+06,0,0,0.755184,0,5984
+MUTEX,15,8.75187e+06,1.71933e+07,4.18398e+06,0,0,0.861708,91382151,120
